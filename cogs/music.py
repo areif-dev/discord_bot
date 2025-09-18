@@ -9,6 +9,54 @@ import spotify_controller
 import time
 
 
+class PlaybackView(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.ctx = ctx 
+
+        self.add_item(SkipBackButton(ctx))
+        self.add_item(TogglePlayButton(ctx))
+        self.add_item(SkipForwardButton(ctx))
+
+
+class SkipBackButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(label="<<", style=discord.ButtonStyle.primary, custom_id="rewind")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if voice_client and voice_client.is_playing() and not voice_client.is_paused():
+            spotify_controller.skip("previous")
+
+
+class TogglePlayButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(label="||/>", style=discord.ButtonStyle.primary, custom_id="toggle")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if not spotify_controller.is_playing():
+            if voice_client and voice_client.is_paused(): 
+                voice_client.resume()
+
+        elif spotify_controller.is_playing(): 
+            if voice_client and not voice_client.is_paused():
+                voice_client.pause()
+
+
+class SkipForwardButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(label=">>", style=disocrd.ButtonStyle.primary, custom_id="next")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = ctx.guild.voice_client
+        if voice_client and voice_client.is_playing() and not voice_client.is_paused():
+            spotify_controller.skip("next")
+
+
 def humanize_duration(seconds: int) -> str:
     """
     Converts a duration given in seconds to a human-readable format (e.g., "1 hour 30 minutes").
@@ -161,6 +209,16 @@ class Music(commands.Cog):
 
     # ======== Commands ========
 
+    @commands.command(name="playback", help="Display a menu for controlling music playback.")
+    async def playback_command(self, ctx):
+        now_playing = "Example Song by Some One"
+        up_next = "Other Song by Some Oneelse\nAnd Another by Reee REE\nREEEEEE\nTest"
+        view = PlaybackView(ctx)
+        embed = discord.Embed(title="Playback", color=discord.Color.blurple())
+        embed.add_field(name="Now Playing", value=now_playing, inline=True)
+        embed.add_field(name="Up Next", value=up_next, inline=True)
+        await ctx.send(embed=embed, view=view)
+
     @commands.command(name="logout", help="Logout of the Current Account.")
     async def logout_command(self, ctx): 
         """
@@ -234,7 +292,7 @@ class Music(commands.Cog):
             await self.play_next(ctx)
 
     @commands.command(
-        name="stop", help="Stops the current song and clears the song queue."
+name="stop", help="Stops the current song and clears the song queue."
     )
     async def stop_command(self, ctx):
         """
