@@ -48,11 +48,11 @@ class TogglePlayButton(discord.ui.Button):
 
 class SkipForwardButton(discord.ui.Button):
     def __init__(self, ctx):
-        super().__init__(label=">>", style=disocrd.ButtonStyle.primary, custom_id="next")
+        super().__init__(label=">>", style=discord.ButtonStyle.primary, custom_id="next")
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
-        voice_client = ctx.guild.voice_client
+        voice_client = self.ctx.guild.voice_client
         if voice_client and voice_client.is_playing() and not voice_client.is_paused():
             spotify_controller.skip("next")
 
