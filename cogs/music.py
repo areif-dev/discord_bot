@@ -28,6 +28,9 @@ class SkipBackButton(discord.ui.Button):
         voice_client = self.ctx.guild.voice_client
         if voice_client and voice_client.is_playing() and not voice_client.is_paused():
             spotify_controller.skip("previous")
+            await interaction.response.send_message(f"Returning to previous song")
+        else:
+            await interaction.response.send_message(f"Nothing is playing right now")
 
 
 class TogglePlayButton(discord.ui.Button):
@@ -40,10 +43,16 @@ class TogglePlayButton(discord.ui.Button):
         if not spotify_controller.is_playing():
             if voice_client and voice_client.is_paused(): 
                 voice_client.resume()
+            spotify_controller.play()
+            await interaction.response.send_message("Resuming playback")
 
         elif spotify_controller.is_playing(): 
             if voice_client and not voice_client.is_paused():
                 voice_client.pause()
+                await interaction.response.send_message("Pausing playback")
+
+        else: 
+            await interaction.response.send_message("No spotify steam found")
 
 
 class SkipForwardButton(discord.ui.Button):
@@ -55,6 +64,9 @@ class SkipForwardButton(discord.ui.Button):
         voice_client = self.ctx.guild.voice_client
         if voice_client and voice_client.is_playing() and not voice_client.is_paused():
             spotify_controller.skip("next")
+            await interaction.response.send_message(f"Skipping to next song")
+        else:
+            await interaction.response.send_message(f"Nothing is playing right now")
 
 
 def humanize_duration(seconds: int) -> str:
