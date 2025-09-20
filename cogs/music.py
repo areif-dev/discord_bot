@@ -241,8 +241,8 @@ class Music(commands.Cog):
         up_next = "Other Song by Some Oneelse\nAnd Another by Reee REE\nREEEEEE\nTest"
         view = PlaybackView(ctx)
         embed = discord.Embed(title="Playback", color=discord.Color.blurple())
-        embed.add_field(name="Now Playing", value=now_playing, inline=True)
-        embed.add_field(name="Up Next", value=up_next, inline=True)
+        embed.add_field(name="Now Playing", value=now_playing, inline=False)
+        embed.add_field(name="Up Next", value=up_next, inline=False)
         await ctx.send(embed=embed, view=view)
 
     @commands.command(name="logout", help="Logout of the Current Account.")
