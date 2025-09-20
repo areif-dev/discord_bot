@@ -10,12 +10,15 @@ import time
 
 
 class PlaybackView(discord.ui.View):
+    """
+    Buttons for controlling spotify playback, such as reverse, play/pause, and skip
+    """
+
     def __init__(self, ctx):
         super().__init__(timeout=None)
         self.ctx = ctx 
-
         self.add_item(SkipBackButton(ctx))
-        self.add_item(TogglePlayButton(ctx))
+        self.add_item(TogglePlayButton(ctx, ctx.guild.voice_client.is_playing()))
         self.add_item(SkipForwardButton(ctx))
 
 
@@ -54,8 +57,12 @@ class SkipBackButton(discord.ui.Button):
 
 
 class TogglePlayButton(discord.ui.Button):
-    def __init__(self, ctx):
-        super().__init__(emoji="⏯️", style=discord.ButtonStyle.primary, custom_id="toggle")
+    def __init__(self, ctx, is_playing: bool):
+        emoji = "▶️"
+        if is_playing:
+            emoji = "⏸️"
+
+        super().__init__(emoji=emoji, style=discord.ButtonStyle.primary, custom_id="toggle")
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
