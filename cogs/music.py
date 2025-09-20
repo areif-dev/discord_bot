@@ -21,7 +21,7 @@ class PlaybackView(discord.ui.View):
 
 class SkipBackButton(discord.ui.Button):
     def __init__(self, ctx):
-        super().__init__(label="<<", style=discord.ButtonStyle.primary, custom_id="rewind")
+        super().__init__(emoji="⏪", style=discord.ButtonStyle.primary, custom_id="rewind")
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
@@ -35,7 +35,7 @@ class SkipBackButton(discord.ui.Button):
 
 class TogglePlayButton(discord.ui.Button):
     def __init__(self, ctx):
-        super().__init__(label="||/>", style=discord.ButtonStyle.primary, custom_id="toggle")
+        super().__init__(emoji="⏯️", style=discord.ButtonStyle.primary, custom_id="toggle")
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
@@ -57,7 +57,7 @@ class TogglePlayButton(discord.ui.Button):
 
 class SkipForwardButton(discord.ui.Button):
     def __init__(self, ctx):
-        super().__init__(label=">>", style=discord.ButtonStyle.primary, custom_id="next")
+        super().__init__(emoji="⏩", style=discord.ButtonStyle.primary, custom_id="next")
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
