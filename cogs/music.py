@@ -222,6 +222,21 @@ class Music(commands.Cog):
 
     @commands.command(name="playback", help="Display a menu for controlling music playback.")
     async def playback_command(self, ctx):
+        await self.join_voice_channel(ctx)
+        spotify_controller.switch_to_device()
+        if not spotify_controller.is_playing():
+            spotify_controller.play()
+            
+        voice_client = ctx.guild.voice_client 
+        if voice_client and not voice_client.is_playing():
+            source = discord.FFmpegPCMAudio(
+                pipe=True, 
+                source=spotify_controller.librespot.stdout, 
+                before_options="-f s16le -ar 44100 -ac 2",
+                options="-f s16le -ar 48000 -ac 2",     
+            )
+            voice_client.play(source)
+
         now_playing = "Example Song by Some One"
         up_next = "Other Song by Some Oneelse\nAnd Another by Reee REE\nREEEEEE\nTest"
         view = PlaybackView(ctx)
