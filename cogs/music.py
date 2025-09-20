@@ -19,6 +19,25 @@ class PlaybackView(discord.ui.View):
         self.add_item(SkipForwardButton(ctx))
 
 
+def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
+    """
+    Constructs the message embed and view that constitute the playback menu 
+
+    :param ctx: The current discord client context 
+    :returns: Tuple. First member is the embed that displays the now playing and up next information.
+    Second member is the view that contains buttons to control playback like revers, play/pause, 
+    and skip
+    """
+
+    now_playing = "Example Song by Some One"
+    up_next = "Other Song by Some Oneelse\nAnd Another by Reee REE\nREEEEEE\nTest"
+    view = PlaybackView(ctx)
+    embed = discord.Embed(title="Playback", color=discord.Color.blurple())
+    embed.add_field(name="Now Playing", value=now_playing, inline=False)
+    embed.add_field(name="Up Next", value=up_next, inline=False)
+    return (embed, view)
+
+
 class SkipBackButton(discord.ui.Button):
     def __init__(self, ctx):
         super().__init__(emoji="⏪", style=discord.ButtonStyle.primary, custom_id="rewind")
@@ -28,7 +47,8 @@ class SkipBackButton(discord.ui.Button):
         voice_client = self.ctx.guild.voice_client
         if voice_client and voice_client.is_playing() and not voice_client.is_paused():
             spotify_controller.skip("previous")
-            await interaction.response.send_message(f"Returning to previous song")
+            embed, view = create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
         else:
             await interaction.response.send_message(f"Nothing is playing right now")
 
@@ -43,12 +63,15 @@ class TogglePlayButton(discord.ui.Button):
         if not spotify_controller.is_playing() and voice_client and voice_client.is_paused():
             voice_client.resume()
             spotify_controller.play()
-            await interaction.response.send_message("Resuming playback")
+            
+            embed, view = create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
 
         elif spotify_controller.is_playing() and voice_client and voice_client.is_playing(): 
             spotify_controller.pause()
             voice_client.pause()
-            await interaction.response.send_message("Pausing playback")
+            embed, view = create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
 
         else: 
             await interaction.response.send_message("No spotify steam found")
@@ -63,7 +86,8 @@ class SkipForwardButton(discord.ui.Button):
         voice_client = self.ctx.guild.voice_client
         if voice_client and voice_client.is_playing() and not voice_client.is_paused():
             spotify_controller.skip("next")
-            await interaction.response.send_message(f"Skipping to next song")
+            embed, view = create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
         else:
             await interaction.response.send_message(f"Nothing is playing right now")
 
@@ -237,12 +261,7 @@ class Music(commands.Cog):
             )
             voice_client.play(source)
 
-        now_playing = "Example Song by Some One"
-        up_next = "Other Song by Some Oneelse\nAnd Another by Reee REE\nREEEEEE\nTest"
-        view = PlaybackView(ctx)
-        embed = discord.Embed(title="Playback", color=discord.Color.blurple())
-        embed.add_field(name="Now Playing", value=now_playing, inline=False)
-        embed.add_field(name="Up Next", value=up_next, inline=False)
+        embed, view = create_playback_embed(ctx)
         await ctx.send(embed=embed, view=view)
 
     @commands.command(name="logout", help="Logout of the Current Account.")
