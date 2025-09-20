@@ -40,16 +40,15 @@ class TogglePlayButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         voice_client = self.ctx.guild.voice_client
-        if not spotify_controller.is_playing():
-            if voice_client and voice_client.is_paused(): 
-                voice_client.resume()
+        if not spotify_controller.is_playing() and voice_client and voice_client.is_paused():
+            voice_client.resume()
             spotify_controller.play()
             await interaction.response.send_message("Resuming playback")
 
-        elif spotify_controller.is_playing(): 
-            if voice_client and not voice_client.is_paused():
-                voice_client.pause()
-                await interaction.response.send_message("Pausing playback")
+        elif spotify_controller.is_playing() and voice_client and voice_client.is_playing(): 
+            spotify_controller.pause()
+            voice_client.pause()
+            await interaction.response.send_message("Pausing playback")
 
         else: 
             await interaction.response.send_message("No spotify steam found")
