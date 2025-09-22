@@ -80,6 +80,46 @@ def is_playing():
     print(f"is_playing failed with status {response.status_code} and text {response.text}")
 
 
+def get_now_playing(): 
+    response = requests.get(f"{SPOTIFY_API_PREFIX}/me/player/currently-playing", headers=get_spotify_headers())
+    if response.status_code == 200:
+        body = json.loads(response.text)
+        primary_artist = None
+        track = None
+        try: 
+            if body and "currently_playing_type" in body and body["currently_playing_type"] == "track":
+                primary_artist = { 
+                    "name": body["item"]["artists"][0]["name"],
+                    "url": body["item"]["artists"][0]["external_urls"]["spotify"],
+                }
+                track = {
+                    "name": body["item"]["name"],
+                    "url": body["item"]["external_urls"]["spotify"],
+                }
+            elif body and "currently_playing_type" in body and body["currently_playing_type"] == "episode":
+                primary_artist = { 
+                    "name": body["item"]["show"]["name"],
+                    "url": body["item"]["show"]["external_urls"]["spotify"],
+                }
+                track = {
+                    "name": body["item"]["name"],
+                    "url": body["item"]["external_urls"]["spotify"],
+                }
+            else:
+                print(f"get_now_playing did not get track or episode information from spotify")
+        except Exception as e: 
+            print(f"get_now_playing errored while parsing info from spotify due to `{e}`")
+
+        new_now_playing = {
+            "raw": body, 
+            "primary_artist": primary_artist,
+            "track": track,
+        }
+        return new_now_playing
+
+    print(f"get_now_playing failed with status {response.status_code} and text {response.text}")
+
+
 def play():
     response = requests.put(f"{SPOTIFY_API_PREFIX}/me/player/play?device_id={get_bot_device_id()}", headers=get_spotify_headers())
     if 300 > response.status_code >= 200:
