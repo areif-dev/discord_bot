@@ -110,6 +110,22 @@ class SkipForwardButton(discord.ui.Button):
             await interaction.response.send_message(f"Nothing is playing right now")
 
 
+class StopButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="⏹️", style=discord.ButtonStyle.primary, custom_id="stop")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if voice_client:
+            if voice_client.is_playing():
+                voice_client.stop()
+
+            await voice_client.disconnect()
+            spotify_controller.stop_librespot()
+            await interaction.response.send_message(content="Disconnected")
+
+
 def humanize_duration(seconds: int) -> str:
     """
     Converts a duration given in seconds to a human-readable format (e.g., "1 hour 30 minutes").
