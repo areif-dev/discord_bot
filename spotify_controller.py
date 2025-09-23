@@ -8,6 +8,122 @@ import threading
 import time
 
 
+class ControllerError(Exception):
+    """ A custom type that is raised by the Spotify Controller """
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+class Artist:
+    def __init__(self, spotify_artist_or_show_object: dict) -> None:
+        if spotify_artist_or_show_object is None:
+            raise ValueError("`Artist` class requires a `SimplifiedArtistObject` from spotify")
+
+        if "name" not in spotify_artist_or_show_object:
+            raise KeyError(f"No field `name` found in artist object: `{spotify_artist_or_show_object}`")
+        if "external_urls" not in spotify_artist_or_show_object:
+            raise KeyError(f"No field `external_urls` found in artist object: `{spotify_artist_or_show_object}`")
+        if "spotify" not in spotify_artist_or_show_object["external_urls"]:
+            raise KeyError(f"No field `spotify` found in artist object['external_urls']: `{spotify_artist_or_show_object}`")
+
+        self.name = spotify_artist_or_show_object["name"]
+        self.url = spotify_artist_or_show_object["external_urls"]["spotify"]
+    
+    def get_str(self) -> str:
+        if self.url:
+            return f"[{self.name}]({self.url})"
+        return self.name
+
+
+class Track:
+    def __init__(self, spotify_track_or_episode_object: dict) -> None:
+        if spotify_track_or_episode_object is None:
+            raise ValueError("`Track` class requires a `TrackObject` or an `EpisodeObject` from spotify")
+
+        if "type" not in spotify_track_or_episode_object:
+            raise KeyError(f"No field `type` found in track/episode object `{spotify_track_or_episode_object}`")
+        self.track_type = spotify_track_or_episode_object["type"]
+
+        if "name" not in spotify_track_or_episode_object:
+            raise KeyError(f"No field `name` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+        if "external_urls" not in spotify_track_or_episode_object:
+            raise KeyError(f"No field `external_urls` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+        if "spotify" not in spotify_track_or_episode_object["external_urls"]:
+            raise KeyError(f"No field `spotify` found in {self.track_type} object['external_urls'] `{spotify_track_or_episode_object}`")
+        if "duration_ms" not in spotify_track_or_episode_object:
+            raise KeyError(f"No field `duration_ms` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+        
+        if self.track_type == "track":
+            if "album" not in spotify_track_or_episode_object:
+                raise KeyError(f"No field `album` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+            if "images" not in spotify_track_or_episode_object["album"]:
+                raise KeyError(f"No field `images` found in {self.track_type} object['album'] `{spotify_track_or_episode_object}`")
+            if "artists" not in spotify_track_or_episode_object:
+                raise KeyError(f"No field `artists` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+
+            self.artists = []
+            for artist in spotify_track_or_episode_object["artists"]:
+                self.artists.append(Artist(artist))
+            self.image = spotify_track_or_episode_object["album"]["images"][0]["url"]
+        elif self.track_type == "episode":
+            if "images" not in spotify_track_or_episode_object:
+                raise KeyError(f"No field `images` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+            if "show" not in spotify_track_or_episode_object:
+                raise KeyError(f"No field `show` found in {self.track_type} object `{spotify_track_or_episode_object}`")
+
+            self.artists = [Artist(spotify_track_or_episode_object["show"]),]
+            self.image = spotify_track_or_episode_object["images"][0]["url"]
+        else:
+            raise TypeError("`Track` class received unexpected type from Spotify. Must be one of `TrackObject` or `EpisodeObject`")
+
+        self.name = spotify_track_or_episode_object["name"]
+        self.url = spotify_track_or_episode_object["external_urls"]["spotify"]
+        self.duration_ms = spotify_track_or_episode_object["duration_ms"]
+
+    def humanize_duration(self) -> str:
+        """
+        Converts a duration given in seconds to a human-readable format (e.g., "1 hour 30 minutes").
+
+        Parameters:
+        - seconds (int): The duration in seconds to be converted.
+
+        Returns:
+        - str: The human-readable format of the duration.
+        """
+        MILLIS = 1
+        SECONDS = 1000 * MILLIS
+        MINUTES = 60 * SECONDS
+        HOURS = 60 * MINUTES
+
+        millis = self.duration_ms
+        hours = millis // HOURS
+        millis = millis % HOURS
+        minutes = millis // MINUTES
+        millis = millis % MINUTES
+        seconds = millis // SECONDS
+
+        human_duration = ""
+        if hours > 1:
+            human_duration += f"{hours} hours "
+        elif hours == 1:
+            human_duration += "1 hour "
+
+        if minutes > 1:
+            human_duration += f"{minutes} minutes "
+        elif minutes == 1:
+            human_duration += "1 minute "
+
+        if seconds > 1:
+            human_duration += f"{seconds} seconds"
+        elif seconds == 1:
+            human_duration += "1 second"
+
+        return human_duration
+
+    def get_str(self):
+        return f"{self.name} [{self.humanize_duration()}] by {self.artists[0].get_str()}"
+
+
 librespot = None
 SPOTIFY_API_PREFIX="https://api.spotify.com/v1"
 
@@ -80,44 +196,18 @@ def is_playing():
     print(f"is_playing failed with status {response.status_code} and text {response.text}")
 
 
-def get_now_playing(): 
-    response = requests.get(f"{SPOTIFY_API_PREFIX}/me/player/currently-playing", headers=get_spotify_headers())
+def get_now_playing() -> Track: 
+    response = requests.get(f"{SPOTIFY_API_PREFIX}/me/player/queue", headers=get_spotify_headers())
     if response.status_code == 200:
         body = json.loads(response.text)
-        primary_artist = None
-        track = None
         try: 
-            if body and "currently_playing_type" in body and body["currently_playing_type"] == "track":
-                primary_artist = { 
-                    "name": body["item"]["artists"][0]["name"],
-                    "url": body["item"]["artists"][0]["external_urls"]["spotify"],
-                }
-                track = {
-                    "name": body["item"]["name"],
-                    "url": body["item"]["external_urls"]["spotify"],
-                }
-            elif body and "currently_playing_type" in body and body["currently_playing_type"] == "episode":
-                primary_artist = { 
-                    "name": body["item"]["show"]["name"],
-                    "url": body["item"]["show"]["external_urls"]["spotify"],
-                }
-                track = {
-                    "name": body["item"]["name"],
-                    "url": body["item"]["external_urls"]["spotify"],
-                }
-            else:
-                print(f"get_now_playing did not get track or episode information from spotify")
+            return Track(body["currently_playing"])
         except Exception as e: 
-            print(f"get_now_playing errored while parsing info from spotify due to `{e}`")
+            raise ControllerError(f"get_now_playing failed to create track info due to `{e}`")
 
-        new_now_playing = {
-            "raw": body, 
-            "primary_artist": primary_artist,
-            "track": track,
-        }
-        return new_now_playing
+    raise ControllerError(f"get_now_playing failed with status {response.status_code} and text `{response.text}`")
 
-    print(f"get_now_playing failed with status {response.status_code} and text {response.text}")
+
 
 
 def play():
