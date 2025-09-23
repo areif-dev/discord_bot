@@ -119,44 +119,6 @@ class StopButton(discord.ui.Button):
             await interaction.response.send_message(content="Disconnected")
 
 
-def humanize_duration(seconds: int) -> str:
-    """
-    Converts a duration given in seconds to a human-readable format (e.g., "1 hour 30 minutes").
-
-    Parameters:
-    - seconds (int): The duration in seconds to be converted.
-
-    Returns:
-    - str: The human-readable format of the duration.
-    """
-    SECONDS = 1
-    MINUTES = 60 * SECONDS
-    HOURS = 60 * MINUTES
-
-    hours = seconds // HOURS
-    seconds = seconds % HOURS
-    minutes = seconds // MINUTES
-    seconds = seconds % MINUTES
-
-    human_duration = ""
-    if hours > 1:
-        human_duration += f"{hours} hours "
-    elif hours == 1:
-        human_duration += "1 hour "
-
-    if minutes > 1:
-        human_duration += f"{minutes} minutes "
-    elif minutes == 1:
-        human_duration += "1 minute "
-
-    if seconds > 1:
-        human_duration += f"{seconds} seconds"
-    elif seconds == 1:
-        human_duration += "1 second"
-
-    return human_duration
-
-
 class Music(commands.Cog):
     def __init__(self, bot):
         """
