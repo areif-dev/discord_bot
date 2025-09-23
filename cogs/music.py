@@ -34,21 +34,14 @@ async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
     """
 
     now_playing = spotify_controller.get_now_playing()
-    artist = now_playing["primary_artist"]["name"]
-    if now_playing["primary_artist"]["url"] and now_playing["primary_artist"]["url"] != "":
-        artist = f"[{now_playing['primary_artist']['name']}]({now_playing['primary_artist']['url']})"
+    queue = spotify_controller.get_queue()
+    queue_str = "\n".join([f"- {track.get_str()}" for track in queue[:4]])
 
-    track = now_playing["track"]["name"]
-    if now_playing["track"]["url"] and now_playing["track"]["url"] != "":
-        track = f"[{now_playing['track']['name']}]({now_playing['track']['url']})"
-
-    now_playing_str = f"{track} by {artist}"
-
-    up_next = "Other Song by Some Oneelse\nAnd Another by Reee REE\nREEEEEE\nTest"
     view = PlaybackView(ctx)
     embed = discord.Embed(title="Playback", color=discord.Color.blurple())
-    embed.add_field(name="Now Playing", value=now_playing_str, inline=False)
-    embed.add_field(name="Up Next", value=up_next, inline=False)
+    embed.set_thumbnail(url=now_playing.image)
+    embed.add_field(name="Now Playing", value=now_playing.get_str(), inline=False)
+    embed.add_field(name="Up Next", value=queue_str, inline=False)
     return (embed, view)
 
 
