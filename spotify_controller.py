@@ -121,7 +121,7 @@ class Track:
         return human_duration
 
     def get_str(self):
-        return f"{self.name} [{self.humanize_duration()}] by {self.artists[0].get_str()}"
+        return f"**{self.name}** [{self.humanize_duration()}] by {self.artists[0].get_str()}"
 
 
 librespot = None
