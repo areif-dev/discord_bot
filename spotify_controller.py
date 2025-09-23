@@ -208,6 +208,20 @@ def get_now_playing() -> Track:
     raise ControllerError(f"get_now_playing failed with status {response.status_code} and text `{response.text}`")
 
 
+def get_queue(): 
+    response = requests.get(f"{SPOTIFY_API_PREFIX}/me/player/queue", headers=get_spotify_headers())
+    if response.status_code != 200:
+        raise ControllerError(f"get_queue failed with status {response.status_code} and text `{response.text}`")
+
+    body = json.loads(response.text)
+    queue = []
+    for track in body["queue"]:
+        try: 
+            queue.append(Track(track))
+        except Exception as e:
+            raise ControllerError(f"get_queue failed to create track info due to `{e}`")
+
+    return queue
 
 
 def play():
