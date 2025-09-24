@@ -102,21 +102,11 @@ class Track:
         seconds = millis // SECONDS
 
         human_duration = ""
-        if hours > 1:
-            human_duration += f"{hours} hours "
-        elif hours == 1:
-            human_duration += "1 hour "
+        if hours >= 1:
+            human_duration += f"{hours}:"
 
-        if minutes > 1:
-            human_duration += f"{minutes} minutes "
-        elif minutes == 1:
-            human_duration += "1 minute "
-
-        if seconds > 1:
-            human_duration += f"{seconds} seconds"
-        elif seconds == 1:
-            human_duration += "1 second"
-
+        human_duration += f"{minutes}:"
+        human_duration += f"{seconds}"
         return human_duration
 
     def get_str(self):
