@@ -243,14 +243,23 @@ def skip(dir: str):
         print(f"Failed to skip with status {response.status_code} and text {response.text}")
 
 
-def search(query: str):
+def search(query: str, search_type: list[str], limit: int = 1):
+    if len(search_type) == 0:
+        raise ControllerError("spotify_controller.search expects at least one value in `search_type`")
+
+    for t in search_type:
+        if t not in ("album", "playlist", "track", "episode", "audiobook"):
+            raise ValueError(f"`search_type` of spotify_controller.search must contain only 'album', 'playlist', 'track', 'episode', 'audiobook'")
+
+    type_str = ",".join(search_type)
+
     encoded_query = urllib.parse.quote_plus(query)
-    response = requests.get(f"{SPOTIFY_API_PREFIX}/search?q={encoded_query}&type=track&limit=1", headers=get_spotify_headers())
-    if response.status_code == 200:
-        return json.loads(response.text)
-    else: 
-        print(response.status_code)
-        print(response.text)
+    response = requests.get(f"{SPOTIFY_API_PREFIX}/search?q={encoded_query}&type={type_str}&limit={limit}", headers=get_spotify_headers())
+
+    if response.status_code != 200:
+        raise ControllerError(f"spotify_controller.search failed with status `{response.status_code}` and text `{response.text}`")
+
+    return json.loads(response.text)
 
 
 def add_to_queue(uri: str): 
