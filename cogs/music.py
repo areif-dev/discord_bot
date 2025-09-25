@@ -1,12 +1,80 @@
-import json
 import discord
 from discord.ext import commands
 import os
 import urllib.parse
-import requests
 import urllib.parse
 import spotify_controller
 import time
+from rapidfuzz import fuzz
+
+
+class SearchModal(discord.ui.Modal, title="Song Search"):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.add_item(discord.ui.TextInput(label="Query", custom_id="query"))
+        self.add_item(discord.ui.TextInput(label="Auto queue first match", default="Yes", custom_id="auto_queue", required=False))
+        self.add_item(discord.ui.TextInput(label="Include results from", default="album,playlist,track,episode,audiobook", custom_id="type", required=False))
+
+    @staticmethod
+    def parse_toggler(raw_toggler_input: str) -> bool:
+        try: 
+            if raw_toggler_input.lower()[0] == "y":
+                return True
+            else: 
+                return False
+        except: 
+            return False
+
+    @staticmethod
+    def fuzzyfind(query: str, pool: list[spotify_controller.Queueable]) -> spotify_controller.Queueable:
+        query = query.lower()
+        closest = None
+        for item in pool:
+            score = fuzz.ratio(query, item.search_str)
+            if query == item.name: 
+                score += 25
+            elif item.name in query or query in item.name:
+                score += 10
+
+            if closest is None or score > closest[0]:
+                closest = (score, item)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        expected = "album,playlist,track,episode,audiobook"
+
+        query = str(self.children[0])
+        auto_queue = SearchModal.parse_toggler(str(self.children[1]))
+        limit = 5
+        if auto_queue:
+            limit = 1
+
+        raw_search_types = str(self.children[2])
+        search_types = []
+        for s in raw_search_types.split(","):
+            s = s.strip()
+            if s == "":
+                continue
+            if s not in expected.split(","):
+                await interaction.response.send_message(f"Unexpected input for search type: `{s}`. Please enter a comma separated list of values containing only a combination of ```{expected}```")
+                return 
+            search_types.append(s)
+
+        if len(search_types) == 0:
+            search_types.append("track")
+
+        raw_results = None
+        try:
+            raw_results = spotify_controller.search(query=query, limit=limit, search_type=search_types)
+        except Exception as e:
+            await interaction.response.send_message(f"Failed to execute search due to error: ```{e}```")
+            return 
+
+        search_results = []
+        for search_t in search_types:
+            search_results.append(spotify_controller.Queueable(raw_results[f"{search_t}s"]["items"]))
+
+        if auto_queue:
+
 
 
 class PlaybackView(discord.ui.View):
@@ -21,6 +89,7 @@ class PlaybackView(discord.ui.View):
         self.add_item(TogglePlayButton(ctx, ctx.guild.voice_client.is_playing()))
         self.add_item(SkipForwardButton(ctx))
         self.add_item(StopButton(ctx))
+        self.add_item(SearchButton(ctx))
 
 
 async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
@@ -35,12 +104,12 @@ async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
 
     now_playing = spotify_controller.get_now_playing()
     queue = spotify_controller.get_queue()
-    queue_str = "\n".join([f"- {track.get_str()}" for track in queue[:4]])
+    queue_str = "\n".join([f"- {track.discord_display_str()}" for track in queue[:4]])
 
     view = PlaybackView(ctx)
     embed = discord.Embed(title="Playback", color=discord.Color.blurple())
     embed.set_thumbnail(url=now_playing.image)
-    embed.add_field(name="Now Playing", value=now_playing.get_str(), inline=False)
+    embed.add_field(name="Now Playing", value=now_playing.discord_display_str(), inline=False)
     embed.add_field(name="Up Next", value=queue_str, inline=False)
     return (embed, view)
 
@@ -117,6 +186,16 @@ class StopButton(discord.ui.Button):
             await voice_client.disconnect()
             spotify_controller.stop_librespot()
             await interaction.response.send_message(content="Disconnected")
+
+
+class SearchButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="🔍", style=discord.ButtonStyle.primary, custom_id="search")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        modal = SearchModal()
+        await interaction.response.send_modal(modal)
 
 
 class Music(commands.Cog):
