@@ -188,7 +188,7 @@ class TogglePlayButton(discord.ui.Button):
             await interaction.response.edit_message(embed=embed, view=view)
 
         else: 
-            await interaction.response.send_message("No spotify steam found")
+            await interaction.response.send_message("No spotify stream found")
 
 
 class SkipForwardButton(discord.ui.Button):
