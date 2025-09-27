@@ -363,8 +363,11 @@ def add_to_queue(uri: str):
     response = requests.post(f"{SPOTIFY_API_PREFIX}/me/player/queue?uri={encoded_uri}&device_id={get_bot_device_id()}", headers=get_spotify_headers())
     if 300 > response.status_code >= 200:
         return response
-    else:
-        print(f"add_to_queue failed with response {response.status_code} and text {response.text}")
+   
+    if response.status_code == 401: 
+        raise ControllerError(f"add_to_queue failed. Looks like you are logged out")
+
+    raise ControllerError(f"add_to_queue failed with response `{response.status_code}` and text `{response.text}`")
 
 
 def get_bot_device_id(): 
