@@ -33,14 +33,18 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
         query = query.lower()
         closest = None
         for item in pool:
-            score = fuzz.ratio(query, item.search_str)
+            score = fuzz.ratio(query, item.search_str())
             if query == item.name: 
                 score += 25
             elif item.name in query or query in item.name:
                 score += 10
 
+            print(f"item: {item}, score: {score}")
+
             if closest is None or score > closest[0]:
                 closest = (score, item)
+
+        return closest[1]
 
     async def on_submit(self, interaction: discord.Interaction):
         expected = "album,playlist,track,episode"
@@ -73,11 +77,38 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             return 
 
         search_results = []
+        print("raw results:", raw_results)
         for search_t in search_types:
-            search_results.append(spotify_controller.Queueable(raw_results[f"{search_t}s"]["items"]))
+            for item in raw_results[f"{search_t}s"]["items"]:
+                if search_t in ("track", "episode"):
+                    try: 
+                        search_results.append(spotify_controller.Queueable(item))
+                    except:
+                        continue
+                elif search_t in ("playlist", "album"): 
+                    try:
+                        search_results.append(spotify_controller.Collection(item))
+                    except: 
+                        continue
 
         if auto_queue:
+            best_match = self.fuzzyfind(query=query, pool=search_results)
+            if isinstance(best_match, spotify_controller.Collection):
+                for track in best_match.tracks:
+                    try: 
+                        spotify_controller.add_to_queue(track.uri)
+                    except spotify_controller.ControllerError as e:
+                        await interaction.response.send_message(f"Encountered error while queueing your collection: ```{e}```")
+                        return 
+            else:
+                try:
+                    spotify_controller.add_to_queue(best_match.uri)
+                except spotify_controller.ControllerError as e: 
+                    await interaction.response.send_message(f"Encountered error while queueing your track: ```{e}```")
+                    return 
 
+            embed, view = await create_playback_embed(self.ctx)
+            await interaction.response.send_message(embed=embed, view=view)
 
 
 class PlaybackView(discord.ui.View):
@@ -197,7 +228,7 @@ class SearchButton(discord.ui.Button):
         self.ctx = ctx
 
     async def callback(self, interaction: discord.Interaction):
-        modal = SearchModal()
+        modal = SearchModal(self.ctx)
         await interaction.response.send_modal(modal)
 
 
