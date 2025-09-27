@@ -26,7 +26,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             return False
 
     @staticmethod
-    def fuzzyfind(query: str, pool: list[spotify_controller.Queueable]) -> spotify_controller.Queueable:
+    def fuzzyfind(query: str, pool: list[spotify_controller.Queueable | spotify_controller.Collection]) -> spotify_controller.Queueable | spotify_controller.Collection:
         query = query.lower()
         closest = None
         for item in pool:

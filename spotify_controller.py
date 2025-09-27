@@ -55,8 +55,62 @@ class Artist:
         return self.name
 
 
+class Collection:
+    def __init__(self, spotify_object: dict) -> None:
+        if spotify_object is None:
+            raise ValueError("`Collection` class requires a spotify object")
+
+        if "type" not in spotify_object:
+            raise KeyError(f"Collection missing required field `type` in {spotify_object}`")
+        self.type = spotify_object["type"]
+
+        if "name" not in spotify_object:
+            raise KeyError(f"No field `name` found in {self.type} object `{spotify_object}`")
+        if "id" not in spotify_object:
+            raise KeyError(f"No field `id` found in {self.type} object `{spotify_object}`")
+
+        if self.type == "album":
+            if "artists" not in spotify_object:
+                raise KeyError(f"No field `artists` found in {self.type} object `{spotify_object}`")
+            self.artists = []
+            for artist in spotify_object["artists"]:
+                self.artists.append(Artist(artist))
+        
+        elif self.type == "playlist":
+            if "owner" not in spotify_object:
+                raise KeyError(f"No field `owner` found in {self.type} object `{spotify_object}`")
+            self.artists = [Artist(spotify_object["owner"]),]
+
+        self.name = spotify_object["name"]
+        self.id = spotify_object["id"]
+        self.tracks = []
+        self.get_tracks()
+
+    def search_str(self) -> str:
+        return f"{self.name} {self.artists[0].name}".lower()
+
+    def get_tracks(self):
+        response = requests.get(f"{SPOTIFY_API_PREFIX}/{self.type}s/{self.id}/tracks?limit=50", headers=get_spotify_headers())
+        
+        if response.status_code != 200:
+            raise ControllerError(f"Failed to fetch tracks from Spotify for `Collection`. Status `{response.status_code}` and text `{response.text}`")
+
+        body = json.loads(response.text)
+        if "items" not in body:
+            raise ControllerError(f"Received unexpected response from Spotify while fetching track info for `Collection` `{self.name}`")
+
+        if self.type == "album": 
+            for item in body["items"]:
+                self.tracks.append(Queueable(item))
+
+        elif self.type == "playlist":
+            for item in body["items"]:
+                self.tracks.append(Queueable(item["track"]))
+
+
 class Queueable:
     def __init__(self, spotify_object: dict) -> None:
+        print(spotify_object)
         if spotify_object is None:
             raise ValueError("`Queueable` class requires a spotify object")
 
@@ -73,20 +127,24 @@ class Queueable:
                 raise KeyError(f"No field `spotify` found in {self.type} object['external_urls'] `{spotify_object}`")
             if "duration_ms" not in spotify_object:
                 raise KeyError(f"No field `duration_ms` found in {self.type} object `{spotify_object}`")
-            if "album" not in spotify_object:
-                raise KeyError(f"No field `album` found in {self.type} object `{spotify_object}`")
-            if "images" not in spotify_object["album"]:
-                raise KeyError(f"No field `images` found in {self.type} object['album'] `{spotify_object}`")
             if "artists" not in spotify_object:
                 raise KeyError(f"No field `artists` found in {self.type} object `{spotify_object}`")
+            if "uri" not in spotify_object:
+                raise KeyError(f"No field `uri` found in {self.type} object `{spotify_object}`")
 
             self.artists = []
             for artist in spotify_object["artists"]:
                 self.artists.append(Artist(artist))
-            self.image = spotify_object["album"]["images"][0]["url"]
+
+            try:
+                self.image = spotify_object["album"]["images"][0]["url"]
+            except: 
+                self.image = None
+
             self.name = spotify_object["name"]
             self.url = spotify_object["external_urls"]["spotify"]
             self.duration_ms = spotify_object["duration_ms"]
+            self.uri = spotify_object["uri"]
 
         elif self.type == "episode":
             if "name" not in spotify_object:
@@ -101,72 +159,21 @@ class Queueable:
                 raise KeyError(f"No field `images` found in {self.type} object `{spotify_object}`")
             if "show" not in spotify_object:
                 raise KeyError(f"No field `show` found in {self.type} object `{spotify_object}`")
+            if "uri" not in spotify_object:
+                raise KeyError(f"No field `uri` found in {self.type} object `{spotify_object}`")
 
             self.artists = [Artist(spotify_object["show"]),]
             self.image = spotify_object["images"][0]["url"]
             self.name = spotify_object["name"]
             self.url = spotify_object["external_urls"]["spotify"]
             self.duration_ms = spotify_object["duration_ms"]
-
-        elif self.type == "album":
-            if "name" not in spotify_object:
-                raise KeyError(f"No field `name` found in {self.type} object `{spotify_object}`")
-            if "external_urls" not in spotify_object:
-                raise KeyError(f"No field `external_urls` found in {self.type} object `{spotify_object}`")
-            if "spotify" not in spotify_object["external_urls"]:
-                raise KeyError(f"No field `spotify` found in {self.type} object['external_urls'] `{spotify_object}`")
-            if "images" not in spotify_object:
-                raise KeyError(f"No field `images` found in {self.type} object `{spotify_object}`")
-            if "artists" not in spotify_object:
-                raise KeyError(f"No field `artists` found in {self.type} object `{spotify_object}`")
-
-            self.artists = []
-            for artist in spotify_object["artists"]:
-                self.artists.append(Artist(artist))
-            self.image = spotify_object["images"][0]["url"]
-
-        elif self.type == "playlist":
-            if "name" not in spotify_object:
-                raise KeyError(f"No field `name` found in {self.type} object `{spotify_object}`")
-            if "external_urls" not in spotify_object:
-                raise KeyError(f"No field `external_urls` found in {self.type} object `{spotify_object}`")
-            if "spotify" not in spotify_object["external_urls"]:
-                raise KeyError(f"No field `spotify` found in {self.type} object['external_urls'] `{spotify_object}`")
-            if "images" not in spotify_object:
-                raise KeyError(f"No field `images` found in {self.type} object `{spotify_object}`")
-            if "owner" not in spotify_object:
-                raise KeyError(f"No field `owner` found in {self.type} object `{spotify_object}`")
-
-            self.name = spotify_object["name"]
-            self.url =  spotify_object["external_urls"]["spotify"]
-            self.image = spotify_object["images"][0]["url"]
-            self.artists = [Artist(spotify_object["owner"]),]
-
-        elif self.type == "audiobook":
-            if "name" not in spotify_object:
-                raise KeyError(f"No field `name` found in {self.type} object `{spotify_object}`")
-            if "external_urls" not in spotify_object:
-                raise KeyError(f"No field `external_urls` found in {self.type} object `{spotify_object}`")
-            if "spotify" not in spotify_object["external_urls"]:
-                raise KeyError(f"No field `spotify` found in {self.type} object['external_urls'] `{spotify_object}`")
-            if "images" not in spotify_object:
-                raise KeyError(f"No field `images` found in {self.type} object `{spotify_object}`")
-            if "authors" not in spotify_object:
-                raise KeyError(f"No field `authors` found in {self.type} object `{spotify_object}`")
-
-            self.name = spotify_object["name"]
-            self.url  = spotify_object["external_urls"]["spotify"]
-            self.image = spotify_object["images"][0]["url"]
-            self.artists = []
-            for artist in spotify_object["authors"]:
-                artist["type"] = "author"
-                self.artists.append(Artist(artist))
+            self.uri = spotify_object["uri"]
 
         else:
-            raise TypeError("`Queueable` class received unexpected type from Spotify. Must be one of audiobook,playlist,album,episode,track")
+            raise TypeError("`Queueable` class received unexpected type from Spotify. Must be one of episode,track")
             
     def search_str(self) -> str:
-        return f"{self.name} {self.artists}".lower()
+        return f"{self.name} {self.artists[0].name}".lower()
 
     def humanize_duration(self) -> str:
         """
