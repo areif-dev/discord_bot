@@ -3,17 +3,20 @@ from discord.ext import commands
 import os
 import urllib.parse
 import urllib.parse
+
+from discord.utils import is_inside_class
 import spotify_controller
 import time
 from rapidfuzz import fuzz
 
 
 class SearchModal(discord.ui.Modal, title="Song Search"):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, ctx) -> None:
+        super().__init__()
+        self.ctx = ctx
         self.add_item(discord.ui.TextInput(label="Query", custom_id="query"))
         self.add_item(discord.ui.TextInput(label="Auto queue first match", default="Yes", custom_id="auto_queue", required=False))
-        self.add_item(discord.ui.TextInput(label="Include results from", default="album,playlist,track,episode,audiobook", custom_id="type", required=False))
+        self.add_item(discord.ui.TextInput(label="Include results from", default="album,playlist,track,episode", custom_id="type", required=False))
 
     @staticmethod
     def parse_toggler(raw_toggler_input: str) -> bool:
@@ -40,7 +43,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
                 closest = (score, item)
 
     async def on_submit(self, interaction: discord.Interaction):
-        expected = "album,playlist,track,episode,audiobook"
+        expected = "album,playlist,track,episode"
 
         query = str(self.children[0])
         auto_queue = SearchModal.parse_toggler(str(self.children[1]))

@@ -344,8 +344,8 @@ def search(query: str, search_type: list[str], limit: int = 1):
         raise ControllerError("spotify_controller.search expects at least one value in `search_type`")
 
     for t in search_type:
-        if t not in ("album", "playlist", "track", "episode", "audiobook"):
-            raise ValueError(f"`search_type` of spotify_controller.search must contain only 'album', 'playlist', 'track', 'episode', 'audiobook'")
+        if t not in ("album", "playlist", "track", "episode"):
+            raise ValueError(f"`search_type` of spotify_controller.search must contain only 'album', 'playlist', 'track', 'episode'")
 
     type_str = ",".join(search_type)
 
