@@ -4,3 +4,4 @@ __pycache__/
 sounds.json
 sounds/
 poker_scores.json
+out.txt
