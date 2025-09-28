@@ -1,3 +1,4 @@
+from re import search
 import discord
 from discord.ext import commands
 import os
@@ -29,7 +30,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             return False
 
     @staticmethod
-    def fuzzyfind(query: str, pool: list[spotify_controller.Queueable | spotify_controller.Collection]) -> spotify_controller.Queueable | spotify_controller.Collection:
+    def fuzzyfind(query: str, pool: list[spotify_controller.Queueable | spotify_controller.Collection]) -> spotify_controller.Queueable | spotify_controller.Collection | None:
         query = query.lower()
         closest = None
         for item in pool:
@@ -39,12 +40,18 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             elif item.name in query or query in item.name:
                 score += 10
 
-            print(f"item: {item}, score: {score}")
+            for artist in item.artists:
+                if artist.name in query: 
+                    score += 10
+
+            print(f"score: {score}, item: {item}")
 
             if closest is None or score > closest[0]:
                 closest = (score, item)
 
-        return closest[1]
+        if closest:
+            return closest[1]
+        return None
 
     async def on_submit(self, interaction: discord.Interaction):
         expected = "album,playlist,track,episode"
@@ -77,38 +84,57 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             return 
 
         search_results = []
+        print(f"search_types: {search_types}")
         print("raw results:", raw_results)
         for search_t in search_types:
             for item in raw_results[f"{search_t}s"]["items"]:
-                if search_t in ("track", "episode"):
+                if search_t == "track":
                     try: 
                         search_results.append(spotify_controller.Queueable(item))
-                    except:
+                    except Exception as e:
+                        print(f"Failed to create Queueable from track info because of `{e}`")
                         continue
+                elif search_t == "episode": 
+                    episode = None
+                    try: 
+                        episode = spotify_controller.get_episode(item["id"])
+                    except Exception as e:
+                        print(f"Failed to get episode info with error `{e}`")
+                        continue
+                    try: 
+                        search_results.append(spotify_controller.Queueable(episode))
+                    except Exception as e:
+                        print(f"Failed to create Queueable from episode info due to `{e}`")
                 elif search_t in ("playlist", "album"): 
                     try:
                         search_results.append(spotify_controller.Collection(item))
-                    except: 
+                    except Exception as e: 
+                        print(f"Failed to create Queueable because of `{e}`")
                         continue
 
         if auto_queue:
             best_match = self.fuzzyfind(query=query, pool=search_results)
             if isinstance(best_match, spotify_controller.Collection):
+                await interaction.response.defer()
                 for track in best_match.tracks:
                     try: 
                         spotify_controller.add_to_queue(track.uri)
-                    except spotify_controller.ControllerError as e:
-                        await interaction.response.send_message(f"Encountered error while queueing your collection: ```{e}```")
+                    except Exception as e:
+                        await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
                         return 
-            else:
+            elif isinstance(best_match, spotify_controller.Queueable):
+                await interaction.response.defer()
                 try:
                     spotify_controller.add_to_queue(best_match.uri)
                 except spotify_controller.ControllerError as e: 
-                    await interaction.response.send_message(f"Encountered error while queueing your track: ```{e}```")
+                    await self.ctx.send(f"Encountered error while queueing your track: ```{e}```")
                     return 
+            else:
+                await self.ctx.send("Doesn't look like there were any valid search results for that")
+                return
 
             embed, view = await create_playback_embed(self.ctx)
-            await interaction.response.send_message(embed=embed, view=view)
+            await self.ctx.send(embed=embed, view=view)
 
 
 class PlaybackView(discord.ui.View):

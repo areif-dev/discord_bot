@@ -90,7 +90,7 @@ class Collection:
         return f"{self.name} {self.artists[0].name}".lower()
 
     def get_tracks(self):
-        response = requests.get(f"{SPOTIFY_API_PREFIX}/{self.type}s/{self.id}/tracks?limit=50", headers=get_spotify_headers())
+        response = requests.get(f"{SPOTIFY_API_PREFIX}/{self.type}s/{self.id}/tracks?limit=20", headers=get_spotify_headers())
         
         if response.status_code != 200:
             raise ControllerError(f"Failed to fetch tracks from Spotify for `Collection`. Status `{response.status_code}` and text `{response.text}`")
@@ -356,6 +356,16 @@ def search(query: str, search_type: list[str], limit: int = 1):
         raise ControllerError(f"spotify_controller.search failed with status `{response.status_code}` and text `{response.text}`")
 
     return json.loads(response.text)
+
+
+def get_episode(id: str): 
+    response = requests.get(f"{SPOTIFY_API_PREFIX}/episodes/{id}", headers=get_spotify_headers())
+    if response.status_code == 200:
+        return json.loads(response.text)
+    elif response.status_code == 401:
+        raise ControllerError("get_episode failed. Looks like you are logged out")
+    else:
+        raise ControllerError(f"get_episode failed with status `{response.status_code}` and text `{response.text}`")
 
 
 def add_to_queue(uri: str): 
