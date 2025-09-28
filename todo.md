@@ -5,10 +5,13 @@
 - [x] get control functions (skip, pause, etc) working 
 - [x] make bot leave if alone in the channel for some time
 - [x] logout
-- [ ] search through things other than tracks
-  - [ ] have the option to display multiple results to user or just pick the first closest match
+- [x] search through things other than tracks
+  - [ ] have the option to display multiple results to user 
+  - [x] or just pick the first closest match
 - [ ] killswitch
 - [ ] playback gui
+    - [ ] clear queue 
+        - no endpoint, so maybe just try skipping everything in the queue until empty
 
 # Fixes 
 
