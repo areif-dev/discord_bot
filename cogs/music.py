@@ -118,7 +118,8 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
                 await interaction.response.defer()
                 for track in best_match.tracks:
                     try: 
-                        spotify_controller.add_to_queue(track.uri)
+                        headers = spotify_controller.get_spotify_headers()
+                        spotify_controller.add_to_queue(track.uri, headers=headers)
                     except Exception as e:
                         await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
                         return 

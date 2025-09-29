@@ -337,18 +337,21 @@ def pause():
         print(f"Failed to pause playback with status {response.status_code} and text {response.text}")
 
 
-def skip(dir: str):
+def skip(dir: str, headers=None):
     """
     :param dir: Either 'next' or 'previous'
     """
     if dir not in ("next", "previous"):
         raise ValueError("dir must either be 'next' or 'previous'")
+
+    if headers is None:
+        headers = get_spotify_headers()
         
-    response = requests.post(f"{SPOTIFY_API_PREFIX}/me/player/{dir}?device_id={get_bot_device_id()}", headers=get_spotify_headers())
+    response = requests.post(f"{SPOTIFY_API_PREFIX}/me/player/{dir}?device_id={get_bot_device_id()}", headers=headers)
     if 300 > response.status_code >= 200:
         print(f"Skipping to {dir}")
     else:
-        print(f"Failed to skip with status {response.status_code} and text {response.text}")
+        raise ControllerError(f"Failed to skip with status {response.status_code} and text {response.text}")
 
 
 def search(query: str, search_type: list[str], limit: int = 1):
@@ -380,9 +383,12 @@ def get_episode(id: str):
         raise ControllerError(f"get_episode failed with status `{response.status_code}` and text `{response.text}`")
 
 
-def add_to_queue(uri: str): 
+def add_to_queue(uri: str, headers=None): 
+    if headers is None:
+        headers = get_spotify_headers()
+
     encoded_uri = urllib.parse.quote(uri)
-    response = requests.post(f"{SPOTIFY_API_PREFIX}/me/player/queue?uri={encoded_uri}&device_id={get_bot_device_id()}", headers=get_spotify_headers())
+    response = requests.post(f"{SPOTIFY_API_PREFIX}/me/player/queue?uri={encoded_uri}&device_id={get_bot_device_id()}", headers=headers)
     if 300 > response.status_code >= 200:
         return response
    
