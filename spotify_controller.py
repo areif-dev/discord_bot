@@ -309,6 +309,18 @@ def get_queue():
     return queue
 
 
+def clear_queue():
+    queue = get_queue()
+    headers = get_spotify_headers()
+    for i in range(len(queue)):
+        skip("next", headers=headers)
+
+    try:
+        skip("next", headers=headers)
+    except:
+        pass
+
+
 def play():
     response = requests.put(f"{SPOTIFY_API_PREFIX}/me/player/play?device_id={get_bot_device_id()}", headers=get_spotify_headers())
     if 300 > response.status_code >= 200:

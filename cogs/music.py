@@ -150,6 +150,7 @@ class PlaybackView(discord.ui.View):
         self.add_item(SkipForwardButton(ctx))
         self.add_item(StopButton(ctx))
         self.add_item(SearchButton(ctx))
+        self.add_item(ClearQueueButton(ctx))
 
 
 async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
@@ -256,6 +257,18 @@ class SearchButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         modal = SearchModal(self.ctx)
         await interaction.response.send_modal(modal)
+
+
+class ClearQueueButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="clear")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        spotify_controller.clear_queue()
+        embed, view = await create_playback_embed(self.ctx)
+        await self.ctx.send(embed=embed, view=view)
 
 
 class Music(commands.Cog):
