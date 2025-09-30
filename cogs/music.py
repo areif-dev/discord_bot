@@ -82,7 +82,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             await self.ctx.send(f"Failed to execute search due to error: ```{e}```")
             return 
 
-        search_results = []
+        search_results: list[spotify_controller.Queueable | spotify_controller.Collection] = []
         print(f"search_types: {search_types}")
         print("raw results:", raw_results)
         for search_t in search_types:
@@ -133,6 +133,15 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
 
             embed, view = await create_playback_embed(self.ctx)
             await self.ctx.send(embed=embed, view=view)
+
+        else:
+            for search_t in search_types:
+                display: list[spotify_controller.Queueable | spotify_controller.Collection] = []
+                for result in search_results:
+                    if result.type == search_t:
+                        display.append(result)
+
+                await self.ctx.send(f"{search_t}s", view=SearchResultView(self.ctx, display))
 
 
 class PlaybackView(discord.ui.View):
@@ -265,6 +274,43 @@ class ClearQueueButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
         spotify_controller.clear_queue()
+        embed, view = await create_playback_embed(self.ctx)
+        await self.ctx.send(embed=embed, view=view)
+
+
+class SearchResultView(discord.ui.View):
+    def __init__(self, ctx, results: list[spotify_controller.Queueable | spotify_controller.Collection]):
+        super().__init__(timeout=None)
+        for result in results:
+            self.add_item(SearchResultButton(ctx, result))
+
+
+class SearchResultButton(discord.ui.Button):
+    def __init__(self, ctx, resource: spotify_controller.Queueable | spotify_controller.Collection):
+        super().__init__(label=resource.name[:80], style=discord.ButtonStyle.primary)
+        self.resource = resource
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        if isinstance(self.resource, spotify_controller.Collection):
+            await interaction.response.defer()
+            for track in self.resource.tracks:
+                try: 
+                    headers = spotify_controller.get_spotify_headers()
+                    spotify_controller.add_to_queue(track.uri, headers=headers)
+                except Exception as e:
+                    await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
+                    return 
+        elif isinstance(self.resource, spotify_controller.Queueable):
+            await interaction.response.defer()
+            try:
+                spotify_controller.add_to_queue(self.resource.uri)
+            except spotify_controller.ControllerError as e: 
+                await self.ctx.send(f"Encountered error while queueing your track: ```{e}```")
+                return 
+        else:
+            await self.ctx.send("Doesn't look like there were any valid search results for that")
+            return
         embed, view = await create_playback_embed(self.ctx)
         await self.ctx.send(embed=embed, view=view)
 
