@@ -1,11 +1,9 @@
-from re import search
 import discord
 from discord.ext import commands
 import os
 import urllib.parse
 import urllib.parse
 
-from discord.utils import is_inside_class
 import spotify_controller
 import time
 from rapidfuzz import fuzz
