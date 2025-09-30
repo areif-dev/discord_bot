@@ -53,6 +53,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
 
     async def on_submit(self, interaction: discord.Interaction):
         expected = "album,playlist,track,episode"
+        await interaction.response.defer()
 
         query = str(self.children[0])
         auto_queue = SearchModal.parse_toggler(str(self.children[1]))
@@ -67,7 +68,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
             if s == "":
                 continue
             if s not in expected.split(","):
-                await interaction.response.send_message(f"Unexpected input for search type: `{s}`. Please enter a comma separated list of values containing only a combination of ```{expected}```")
+                await self.ctx.send(f"Unexpected input for search type: `{s}`. Please enter a comma separated list of values containing only a combination of ```{expected}```")
                 return 
             search_types.append(s)
 
@@ -78,7 +79,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
         try:
             raw_results = spotify_controller.search(query=query, limit=limit, search_type=search_types)
         except Exception as e:
-            await interaction.response.send_message(f"Failed to execute search due to error: ```{e}```")
+            await self.ctx.send(f"Failed to execute search due to error: ```{e}```")
             return 
 
         search_results = []
@@ -113,7 +114,6 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
         if auto_queue:
             best_match = self.fuzzyfind(query=query, pool=search_results)
             if isinstance(best_match, spotify_controller.Collection):
-                await interaction.response.defer()
                 for track in best_match.tracks:
                     try: 
                         headers = spotify_controller.get_spotify_headers()
@@ -122,7 +122,6 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
                         await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
                         return 
             elif isinstance(best_match, spotify_controller.Queueable):
-                await interaction.response.defer()
                 try:
                     spotify_controller.add_to_queue(best_match.uri)
                 except spotify_controller.ControllerError as e: 
