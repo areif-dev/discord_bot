@@ -1,50 +1,318 @@
-import json
 import discord
 from discord.ext import commands
 import os
 import urllib.parse
-import requests
 import urllib.parse
+
 import spotify_controller
 import time
+from rapidfuzz import fuzz
 
 
-def humanize_duration(seconds: int) -> str:
+class SearchModal(discord.ui.Modal, title="Song Search"):
+    def __init__(self, ctx) -> None:
+        super().__init__()
+        self.ctx = ctx
+        self.add_item(discord.ui.TextInput(label="Query", custom_id="query"))
+        self.add_item(discord.ui.TextInput(label="Auto queue best match", default="Yes", custom_id="auto_queue", required=False))
+        self.add_item(discord.ui.TextInput(label="Include results from", default="album,playlist,track,episode", custom_id="type", required=False))
+
+    @staticmethod
+    def parse_toggler(raw_toggler_input: str) -> bool:
+        try: 
+            if raw_toggler_input.lower()[0] == "y":
+                return True
+            else: 
+                return False
+        except: 
+            return False
+
+    @staticmethod
+    def fuzzyfind(query: str, pool: list[spotify_controller.Queueable | spotify_controller.Collection]) -> spotify_controller.Queueable | spotify_controller.Collection | None:
+        query = query.lower()
+        closest = None
+        for item in pool:
+            score = fuzz.ratio(query, item.search_str())
+            if query == item.name: 
+                score += 25
+            elif item.name in query or query in item.name:
+                score += 10
+
+            for artist in item.artists:
+                if artist.name in query: 
+                    score += 10
+
+            print(f"score: {score}, item: {item}")
+
+            if closest is None or score > closest[0]:
+                closest = (score, item)
+
+        if closest:
+            return closest[1]
+        return None
+
+    async def on_submit(self, interaction: discord.Interaction):
+        expected = "album,playlist,track,episode"
+        await interaction.response.defer()
+
+        query = str(self.children[0])
+        auto_queue = SearchModal.parse_toggler(str(self.children[1]))
+        limit = 5
+        if auto_queue:
+            limit = 1
+
+        raw_search_types = str(self.children[2])
+        search_types = []
+        for s in raw_search_types.split(","):
+            s = s.strip()
+            if s == "":
+                continue
+            if s not in expected.split(","):
+                await self.ctx.send(f"Unexpected input for search type: `{s}`. Please enter a comma separated list of values containing only a combination of ```{expected}```")
+                return 
+            search_types.append(s)
+
+        if len(search_types) == 0:
+            search_types.append("track")
+
+        raw_results = None
+        try:
+            raw_results = spotify_controller.search(query=query, limit=limit, search_type=search_types)
+        except Exception as e:
+            await self.ctx.send(f"Failed to execute search due to error: ```{e}```")
+            return 
+
+        search_results: list[spotify_controller.Queueable | spotify_controller.Collection] = []
+        print(f"search_types: {search_types}")
+        print("raw results:", raw_results)
+        for search_t in search_types:
+            for item in raw_results[f"{search_t}s"]["items"]:
+                if search_t == "track":
+                    try: 
+                        search_results.append(spotify_controller.Queueable(item))
+                    except Exception as e:
+                        print(f"Failed to create Queueable from track info because of `{e}`")
+                        continue
+                elif search_t == "episode": 
+                    episode = None
+                    try: 
+                        episode = spotify_controller.get_episode(item["id"])
+                    except Exception as e:
+                        print(f"Failed to get episode info with error `{e}`")
+                        continue
+                    try: 
+                        search_results.append(spotify_controller.Queueable(episode))
+                    except Exception as e:
+                        print(f"Failed to create Queueable from episode info due to `{e}`")
+                elif search_t in ("playlist", "album"): 
+                    try:
+                        search_results.append(spotify_controller.Collection(item))
+                    except Exception as e: 
+                        print(f"Failed to create Queueable because of `{e}`")
+                        continue
+
+        if auto_queue:
+            best_match = self.fuzzyfind(query=query, pool=search_results)
+            if isinstance(best_match, spotify_controller.Collection):
+                for track in best_match.tracks:
+                    try: 
+                        headers = spotify_controller.get_spotify_headers()
+                        spotify_controller.add_to_queue(track.uri, headers=headers)
+                    except Exception as e:
+                        await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
+                        return 
+            elif isinstance(best_match, spotify_controller.Queueable):
+                try:
+                    spotify_controller.add_to_queue(best_match.uri)
+                except spotify_controller.ControllerError as e: 
+                    await self.ctx.send(f"Encountered error while queueing your track: ```{e}```")
+                    return 
+            else:
+                await self.ctx.send("Doesn't look like there were any valid search results for that")
+                return
+
+            embed, view = await create_playback_embed(self.ctx)
+            await self.ctx.send(embed=embed, view=view)
+
+        else:
+            for search_t in search_types:
+                display: list[spotify_controller.Queueable | spotify_controller.Collection] = []
+                for result in search_results:
+                    if result.type == search_t:
+                        display.append(result)
+
+                await self.ctx.send(f"{search_t}s", view=SearchResultView(self.ctx, display))
+
+
+class PlaybackView(discord.ui.View):
     """
-    Converts a duration given in seconds to a human-readable format (e.g., "1 hour 30 minutes").
-
-    Parameters:
-    - seconds (int): The duration in seconds to be converted.
-
-    Returns:
-    - str: The human-readable format of the duration.
+    Buttons for controlling spotify playback, such as reverse, play/pause, and skip
     """
-    SECONDS = 1
-    MINUTES = 60 * SECONDS
-    HOURS = 60 * MINUTES
 
-    hours = seconds // HOURS
-    seconds = seconds % HOURS
-    minutes = seconds // MINUTES
-    seconds = seconds % MINUTES
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.ctx = ctx 
+        self.add_item(SkipBackButton(ctx))
+        self.add_item(TogglePlayButton(ctx, ctx.guild.voice_client.is_playing()))
+        self.add_item(SkipForwardButton(ctx))
+        self.add_item(StopButton(ctx))
+        self.add_item(SearchButton(ctx))
+        self.add_item(ClearQueueButton(ctx))
 
-    human_duration = ""
-    if hours > 1:
-        human_duration += f"{hours} hours "
-    elif hours == 1:
-        human_duration += "1 hour "
 
-    if minutes > 1:
-        human_duration += f"{minutes} minutes "
-    elif minutes == 1:
-        human_duration += "1 minute "
+async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
+    """
+    Constructs the message embed and view that constitute the playback menu 
 
-    if seconds > 1:
-        human_duration += f"{seconds} seconds"
-    elif seconds == 1:
-        human_duration += "1 second"
+    :param ctx: The current discord client context 
+    :returns: Tuple. First member is the embed that displays the now playing and up next information.
+    Second member is the view that contains buttons to control playback like revers, play/pause, 
+    and skip
+    """
 
-    return human_duration
+    now_playing = spotify_controller.get_now_playing()
+    queue = spotify_controller.get_queue()
+    queue_str = "\n".join([f"- {track.discord_display_str()}" for track in queue[:4]])
+
+    view = PlaybackView(ctx)
+    embed = discord.Embed(title="Playback", color=discord.Color.blurple())
+    embed.set_thumbnail(url=now_playing.image)
+    embed.add_field(name="Now Playing", value=now_playing.discord_display_str(), inline=False)
+    embed.add_field(name="Up Next", value=queue_str, inline=False)
+    return (embed, view)
+
+
+class SkipBackButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="⏪", style=discord.ButtonStyle.primary, custom_id="rewind")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if voice_client and voice_client.is_playing() and not voice_client.is_paused():
+            spotify_controller.skip("previous")
+            embed, view = await create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message(f"Nothing is playing right now")
+
+
+class TogglePlayButton(discord.ui.Button):
+    def __init__(self, ctx, is_playing: bool):
+        emoji = "▶️"
+        if is_playing:
+            emoji = "⏸️"
+
+        super().__init__(emoji=emoji, style=discord.ButtonStyle.primary, custom_id="toggle")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if not spotify_controller.is_playing() and voice_client and voice_client.is_paused():
+            voice_client.resume()
+            spotify_controller.play()
+            
+            embed, view = await create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        elif spotify_controller.is_playing() and voice_client and voice_client.is_playing(): 
+            spotify_controller.pause()
+            voice_client.pause()
+            embed, view = await create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        else: 
+            await interaction.response.send_message("No spotify stream found")
+
+
+class SkipForwardButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="⏩", style=discord.ButtonStyle.primary, custom_id="next")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if voice_client and voice_client.is_playing() and not voice_client.is_paused():
+            spotify_controller.skip("next")
+            embed, view = await create_playback_embed(self.ctx)
+            await interaction.response.edit_message(embed=embed, view=view)
+        else:
+            await interaction.response.send_message(f"Nothing is playing right now")
+
+
+class StopButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="⏹️", style=discord.ButtonStyle.primary, custom_id="stop")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        voice_client = self.ctx.guild.voice_client
+        if voice_client:
+            if voice_client.is_playing():
+                voice_client.stop()
+
+            await voice_client.disconnect()
+            spotify_controller.stop_librespot()
+            await interaction.response.send_message(content="Disconnected")
+
+
+class SearchButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="🔍", style=discord.ButtonStyle.primary, custom_id="search")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        modal = SearchModal(self.ctx)
+        await interaction.response.send_modal(modal)
+
+
+class ClearQueueButton(discord.ui.Button):
+    def __init__(self, ctx):
+        super().__init__(emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="clear")
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        spotify_controller.clear_queue()
+        embed, view = await create_playback_embed(self.ctx)
+        await self.ctx.send(embed=embed, view=view)
+
+
+class SearchResultView(discord.ui.View):
+    def __init__(self, ctx, results: list[spotify_controller.Queueable | spotify_controller.Collection]):
+        super().__init__(timeout=None)
+        for result in results:
+            self.add_item(SearchResultButton(ctx, result))
+
+
+class SearchResultButton(discord.ui.Button):
+    def __init__(self, ctx, resource: spotify_controller.Queueable | spotify_controller.Collection):
+        super().__init__(label=resource.name[:80], style=discord.ButtonStyle.primary)
+        self.resource = resource
+        self.ctx = ctx
+
+    async def callback(self, interaction: discord.Interaction):
+        if isinstance(self.resource, spotify_controller.Collection):
+            await interaction.response.defer()
+            for track in self.resource.tracks:
+                try: 
+                    headers = spotify_controller.get_spotify_headers()
+                    spotify_controller.add_to_queue(track.uri, headers=headers)
+                except Exception as e:
+                    await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
+                    return 
+        elif isinstance(self.resource, spotify_controller.Queueable):
+            await interaction.response.defer()
+            try:
+                spotify_controller.add_to_queue(self.resource.uri)
+            except spotify_controller.ControllerError as e: 
+                await self.ctx.send(f"Encountered error while queueing your track: ```{e}```")
+                return 
+        else:
+            await self.ctx.send("Doesn't look like there were any valid search results for that")
+            return
+        embed, view = await create_playback_embed(self.ctx)
+        await self.ctx.send(embed=embed, view=view)
 
 
 class Music(commands.Cog):
@@ -161,6 +429,26 @@ class Music(commands.Cog):
 
     # ======== Commands ========
 
+    @commands.command(name="playback", help="Display a menu for controlling music playback.")
+    async def playback_command(self, ctx):
+        await self.join_voice_channel(ctx)
+        spotify_controller.switch_to_device()
+        if not spotify_controller.is_playing():
+            spotify_controller.play()
+            
+        voice_client = ctx.guild.voice_client 
+        if voice_client and not voice_client.is_playing():
+            source = discord.FFmpegPCMAudio(
+                pipe=True, 
+                source=spotify_controller.librespot.stdout, 
+                before_options="-f s16le -ar 44100 -ac 2",
+                options="-f s16le -ar 48000 -ac 2",     
+            )
+            voice_client.play(source)
+
+        embed, view = await create_playback_embed(ctx)
+        await ctx.send(embed=embed, view=view)
+
     @commands.command(name="logout", help="Logout of the Current Account.")
     async def logout_command(self, ctx): 
         """
@@ -234,7 +522,7 @@ class Music(commands.Cog):
             await self.play_next(ctx)
 
     @commands.command(
-        name="stop", help="Stops the current song and clears the song queue."
+name="stop", help="Stops the current song and clears the song queue."
     )
     async def stop_command(self, ctx):
         """

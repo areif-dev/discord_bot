@@ -2,10 +2,16 @@
 
 - [x] cache access token, so you can skip logging in everytime the bot starts
   - [x] related: investigate refreshing the access token
-- [ ] get control functions (skip, pause, etc) working 
+- [x] get control functions (skip, pause, etc) working 
 - [x] make bot leave if alone in the channel for some time
-- [ ] logout
-- [ ] search through things other than tracks
+- [x] logout
+- [x] search through things other than tracks
+  - [ ] have the option to display multiple results to user 
+  - [x] or just pick the first closest match
+- [ ] killswitch
+- [ ] playback gui
+    - [ ] clear queue 
+        - no endpoint, so maybe just try skipping everything in the queue until empty
 
 # Fixes 
 
@@ -14,5 +20,7 @@
 - [x] break authentication server out into separate microservice
 - [ ] make errors relating to being logged out more obvious
 - [x] get docker builds on arm64 working
-- [ ] pause keeps streaming, then dumps all data rapidly when unpaused
-- [ ] maybe refetch auth token any time a command is called
+- [x] pause keeps streaming, then dumps all data rapidly when unpaused
+  - [ ] still kind of happens if paused through spotify interface
+- [x] maybe refetch auth token any time a command is called
+  - Marked as complete. No longer necessary
