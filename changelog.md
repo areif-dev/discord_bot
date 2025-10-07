@@ -48,3 +48,4 @@ Clicking the "Search" button will open a form you can fill out to fine tune your
     - Rearranging the options has no effect on the search 
     - Leaving this field blank will only return search results from "tracks". IE songs 
     - Queuing playlists or albums will queue up to the first 20 items in the playlist or album 
+    - This element would make much more sense as a list of checkboxes, but Discord does not have a checkbox, so we get this instead
