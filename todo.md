@@ -6,11 +6,11 @@
 - [x] make bot leave if alone in the channel for some time
 - [x] logout
 - [x] search through things other than tracks
-  - [ ] have the option to display multiple results to user 
+  - [x] have the option to display multiple results to user 
   - [x] or just pick the first closest match
 - [ ] killswitch
-- [ ] playback gui
-    - [ ] clear queue 
+- [x] playback gui
+    - [x] clear queue 
         - no endpoint, so maybe just try skipping everything in the queue until empty
 
 # Fixes 
