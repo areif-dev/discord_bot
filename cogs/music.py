@@ -15,7 +15,7 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
         self.ctx = ctx
         self.add_item(discord.ui.TextInput(label="Query", custom_id="query"))
         self.add_item(discord.ui.TextInput(label="Auto queue best match", default="Yes", custom_id="auto_queue", required=False))
-        self.add_item(discord.ui.TextInput(label="Include results from", default="album,playlist,track,episode", custom_id="type", required=False))
+        self.add_item(discord.ui.TextInput(label="Include results from (album,playlist,track,episode)", default="track,episode", custom_id="type", required=False))
 
     @staticmethod
     def parse_toggler(raw_toggler_input: str) -> bool:
