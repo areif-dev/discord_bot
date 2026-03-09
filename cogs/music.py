@@ -153,7 +153,11 @@ class PlaybackView(discord.ui.View):
         super().__init__(timeout=None)
         self.ctx = ctx 
         self.add_item(SkipBackButton(ctx))
-        self.add_item(TogglePlayButton(ctx, ctx.guild.voice_client.is_playing()))
+        is_playing = False
+        if ctx.guild.voice_client:
+            is_playing = ctx.guild.voice_client.is_playing()
+
+        self.add_item(TogglePlayButton(ctx, is_playing))
         self.add_item(SkipForwardButton(ctx))
         self.add_item(StopButton(ctx))
         self.add_item(SearchButton(ctx))
@@ -437,6 +441,10 @@ class Music(commands.Cog):
             spotify_controller.play()
             
         voice_client = ctx.guild.voice_client 
+        if not voice_client:
+            await ctx.send("Failed to connect to voice channel.")
+            return
+
         if voice_client and not voice_client.is_playing():
             source = discord.FFmpegPCMAudio(
                 pipe=True, 
