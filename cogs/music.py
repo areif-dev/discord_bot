@@ -291,7 +291,7 @@ class SearchResultView(discord.ui.View):
 
 class SearchResultButton(discord.ui.Button):
     def __init__(self, ctx, resource: spotify_controller.Queueable | spotify_controller.Collection):
-        super().__init__(label=resource.name[:80], style=discord.ButtonStyle.primary)
+        super().__init__(label=f"{resource.artists[0].name} - {resource.name}"[:80], style=discord.ButtonStyle.primary)
         self.resource = resource
         self.ctx = ctx
 
