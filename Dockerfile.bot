@@ -1,10 +1,9 @@
-FROM giof71/librespot:latest as librespot
-
-FROM python:3.13-slim 
+FROM python:3.14-slim 
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ffmpeg \
+        git \
         libssl-dev \
         pkg-config \
         curl \
@@ -16,7 +15,9 @@ RUN curl --proto '=https' --tlsv1.2 -sSf -Lo rustup.sh https://sh.rustup.rs && \
     bash rustup.sh -y
 
 ENV PATH="$PATH:/root/.cargo/bin"
-RUN cargo install librespot
+RUN git clone https://github.com/librespot-org/librespot
+WORKDIR /librespot 
+RUN cargo build --release && mv target/release/librespot /root/.cargo/bin
 
 COPY . /bot 
 WORKDIR /bot 
