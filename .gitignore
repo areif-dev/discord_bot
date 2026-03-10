@@ -5,3 +5,4 @@ sounds.json
 sounds/
 poker_scores.json
 out.txt
+*.env
