@@ -176,7 +176,14 @@ async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
 
     now_playing = spotify_controller.get_now_playing()
     queue = spotify_controller.get_queue()
-    queue_str = "\n".join([f"- {track.discord_display_str()}" for track in queue[:4]])
+    queue_str = ""
+    if len(queue) <= 8:
+        queue_str += "\n".join([f"- {track.discord_display_str()}" for track in queue[:6]])
+    else: 
+        queue_str += "\n".join([f"- {track.discord_display_str()}" for track in queue[:3]])
+        queue_str += "\n...\n"
+        queue_str += "\n".join([f"- {track.discord_display_str()}" for track in queue[-3:]])
+    queue_str = queue_str[:1024]
 
     view = PlaybackView(ctx)
     embed = discord.Embed(title="Playback", color=discord.Color.blurple())
