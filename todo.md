@@ -27,5 +27,5 @@
   - [ ] still kind of happens if paused through spotify interface
 - [x] maybe refetch auth token any time a command is called
   - Marked as complete. No longer necessary
-- [ ] display a message that a song has been queued. 
+- [x] display a message that a song has been queued. 
 - [x] Possibly show the last ~4 items in the queue as well as first 4

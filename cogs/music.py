@@ -121,12 +121,14 @@ class SearchModal(discord.ui.Modal, title="Song Search"):
                     except Exception as e:
                         await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
                         return 
+                await self.ctx.send(f"Queued \"{best_match.name}\" by {best_match.artists[0].name}")
             elif isinstance(best_match, spotify_controller.Queueable):
                 try:
                     spotify_controller.add_to_queue(best_match.uri)
                 except spotify_controller.ControllerError as e: 
                     await self.ctx.send(f"Encountered error while queueing your track: ```{e}```")
                     return 
+                await self.ctx.send(f"Queued \"{best_match.name}\" by {best_match.artists[0].name}")
             else:
                 await self.ctx.send("Doesn't look like there were any valid search results for that")
                 return
@@ -312,6 +314,7 @@ class SearchResultButton(discord.ui.Button):
                 except Exception as e:
                     await self.ctx.send(f"Encountered error while queueing your collection: ```{e}```")
                     return 
+            await self.ctx.send(f"Queued \"{self.resource.name}\" by {self.resource.artists[0].name}")
         elif isinstance(self.resource, spotify_controller.Queueable):
             await interaction.response.defer()
             try:
@@ -319,6 +322,7 @@ class SearchResultButton(discord.ui.Button):
             except spotify_controller.ControllerError as e: 
                 await self.ctx.send(f"Encountered error while queueing your track: ```{e}```")
                 return 
+            await self.ctx.send(f"Queued \"{self.resource.name}\" by {self.resource.artists[0].name}")
         else:
             await self.ctx.send("Doesn't look like there were any valid search results for that")
             return
