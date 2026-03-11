@@ -12,6 +12,9 @@
 - [x] playback gui
     - [x] clear queue 
         - no endpoint, so maybe just try skipping everything in the queue until empty
+- [ ] periodically update python dependencies 
+- [ ] get a hook into spotify to update the gui more frequently
+- [ ] get dot-commands working for controlling music again
 
 # Fixes 
 
