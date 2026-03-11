@@ -12,9 +12,8 @@
 - [x] playback gui
     - [x] clear queue 
         - no endpoint, so maybe just try skipping everything in the queue until empty
-- [ ] periodically update python dependencies 
 - [ ] get a hook into spotify to update the gui more frequently
-- [ ] get dot-commands working for controlling music again
+- [x] add line numbers to the displayed queue instead of the bullet point
 
 # Fixes 
 
@@ -29,3 +28,5 @@
   - Marked as complete. No longer necessary
 - [x] display a message that a song has been queued. 
 - [x] Possibly show the last ~4 items in the queue as well as first 4
+- [ ] get dot-commands working for controlling music again
+- [ ] periodically update python dependencies 

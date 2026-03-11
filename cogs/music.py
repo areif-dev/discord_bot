@@ -180,11 +180,11 @@ async def create_playback_embed(ctx) -> tuple[discord.Embed, PlaybackView]:
     queue = spotify_controller.get_queue()
     queue_str = ""
     if len(queue) <= 8:
-        queue_str += "\n".join([f"- {track.discord_display_str()}" for track in queue[:6]])
+        queue_str += "\n".join([f"{i + 1}. {track.discord_display_str()}" for i, track in enumerate(queue[:6])])
     else: 
-        queue_str += "\n".join([f"- {track.discord_display_str()}" for track in queue[:3]])
+        queue_str += "\n".join([f"{i + 1}. {track.discord_display_str()}" for i, track in enumerate(queue[:3])])
         queue_str += "\n...\n"
-        queue_str += "\n".join([f"- {track.discord_display_str()}" for track in queue[-3:]])
+        queue_str += "\n".join([f"{len(queue) - 2 + i}. {track.discord_display_str()}" for i, track in enumerate(queue[-3:])])
     queue_str = queue_str[:1024]
 
     view = PlaybackView(ctx)
