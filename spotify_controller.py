@@ -455,7 +455,7 @@ def start_librespot():
         "--name", os.getenv("BOT_NAME"),
         "--backend", "pipe",
         "--bitrate", "320",
-        "--access-token", get_access_token()["access_token"],
+        "--cache", "./credentials"
         "--enable-volume-normalisation",
         "--initial-volume", "100",
     ], stdout=subprocess.PIPE)
