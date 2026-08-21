@@ -449,13 +449,13 @@ def set_volume_percent(percent: int):
 
 def start_librespot():
     global librespot 
-    print(get_access_token())
+    # print(get_access_token())
     librespot = subprocess.Popen([
         "librespot",
         "--name", os.getenv("BOT_NAME"),
         "--backend", "pipe",
         "--bitrate", "320",
-        "--cache", "./credentials"
+        "--cache", "./credentials",
         "--enable-volume-normalisation",
         "--initial-volume", "100",
     ], stdout=subprocess.PIPE)
