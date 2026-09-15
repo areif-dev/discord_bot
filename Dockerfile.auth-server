@@ -2,6 +2,6 @@ FROM python:3.11-slim
 
 RUN pip install flask requests
 RUN mkdir /server
-COPY ./auth_server.py /server
-WORKDIR /server 
+COPY ./auth_server /server
+WORKDIR /server/src
 CMD ["python", "auth_server.py"]

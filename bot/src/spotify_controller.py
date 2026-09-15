@@ -209,7 +209,6 @@ class Queueable:
         return f"**{self.name}** [{self.humanize_duration()}] by {self.artists[0].discord_display_str()}"
 
 
-librespot = None
 SPOTIFY_API_PREFIX="https://api.spotify.com/v1"
 
 
@@ -445,35 +444,3 @@ def set_volume_percent(percent: int):
         print("Successfully set the volume")
     else:
         print(f"set_volume_percent failed with status {response.status_code} and message {response.text}")
-
-
-def start_librespot():
-    global librespot 
-    # print(get_access_token())
-    librespot = subprocess.Popen([
-        "librespot",
-        "--name", os.getenv("BOT_NAME"),
-        "--backend", "pipe",
-        "--bitrate", "320",
-        "--cache", "./credentials",
-        "--enable-volume-normalisation",
-        "--initial-volume", "100",
-    ], stdout=subprocess.PIPE)
-
-
-def stop_librespot():
-    global librespot 
-    if librespot:
-        librespot.terminate()
-        librespot = None
-
-
-def _refresh_librespot():
-    global librespot 
-    print(f"starting refresh thread: Librespot is '{librespot}'")
-    if librespot:
-        print("Waiting to refresh librespot in 1 hour")
-        time.sleep(3590)
-        print("Refreshing librespot")
-        stop_librespot()
-        start_librespot()
